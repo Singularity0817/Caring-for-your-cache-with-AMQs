@@ -13,7 +13,8 @@ private:
     uint64_t m;     // Size of the bloom filter.
     uint32_t k;     // Number of hash functions.
 
-    const uint64_t hashCombineFactor = 0;
+    uint64_t hashCombineFactor = 0; // A modular factor to combine the 128-bit murmur hash value
+                                    // to a 64-bit one.
 
     std::vector<bool> B;    // The bit-array for the bloom filter.
 
@@ -25,6 +26,8 @@ public:
 
     bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate);
 
+    void dump_metadata();
+
     void insert(uint64_t key);
 
     bool query(uint64_t key);
@@ -34,15 +37,21 @@ public:
 
 bloom_filter::bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate):
     n (numDistinctKeys),
-    p (falsePositiveRate),
-    hashCombineFactor ((((uint64_t(1) << 63) % m) * (2 % m)) % m)
+    p (falsePositiveRate)
 {
     B.resize(n);
 
     m = ceil((-double(n) * log(p)) / (log(2) * log(2)));
     k = (double(m) / n) * log(2);
 
-    std::cerr << "n = " << n << "; p = " << p << "; m = " << m << "; hc = " << hashCombineFactor << "\n";
+    hashCombineFactor = (((uint64_t(1) << 63) % m) * (2 % m)) % m;
+}
+
+
+
+void bloom_filter::dump_metadata()
+{
+    std::clog << "n = " << n << "; p = " << p << "; m = " << m << "; hc = " << hashCombineFactor << "\n";
 }
 
 
