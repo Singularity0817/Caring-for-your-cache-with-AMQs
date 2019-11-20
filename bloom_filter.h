@@ -22,9 +22,13 @@ private:
 
     void set_parameters(uint64_t numDistinctKeys, double falsePositiveRate);
 
+    void dump_bits();
+
     inline uint64_t get_murmur_hash_slot(uint64_t &key, uint32_t &seed);
 
     void serialize(std::string &outputFile);
+
+    void deserialize(std::string &bfFile);
 
 public:
     bloom_filter() {}
@@ -33,16 +37,20 @@ public:
 
     bloom_filter(std::string &keyFile, uint64_t numDistinct, double fpr, std::string &outputFile);
 
-    void dump_metadata();
+    bloom_filter(std::string &bfFile);
+
+    void dump_metadata(bool dumpBits = false);
 
     void insert(uint64_t key);
 
     bool query(uint64_t key);
+
+    void query(std::string &queryFile, std::vector<bool> &result);
 };
 
 
 
-void bloom_filter::dump_metadata()
+void bloom_filter::dump_metadata(bool dumpBits)
 {
     std::clog << "\tn = " << n << ";";
     std::clog << "\tp = " << p << ";";
@@ -50,6 +58,20 @@ void bloom_filter::dump_metadata()
     std::clog << "\tk = " << k << ";";
     std::clog << "\thc = " << hashCombineFactor << ";";
     std::clog << "\n";
+
+
+    if(dumpBits)
+        dump_bits();
+}
+
+
+
+void bloom_filter::dump_bits()
+{
+    for(uint64_t i = 0; i < m; ++i)
+        std::cout << B[i];
+
+    std::cout << "\n";
 }
 
 
@@ -86,7 +108,6 @@ bloom_filter::bloom_filter(std::string &keyFile, uint64_t numDistinct, double fp
     }
 
     set_parameters(numDistinct, fpr);
-    dump_metadata();
 
     uint64_t key;
     while(input >> key)
@@ -94,6 +115,17 @@ bloom_filter::bloom_filter(std::string &keyFile, uint64_t numDistinct, double fp
 
     
     serialize(outputFile);
+
+    dump_metadata();
+}
+
+
+
+bloom_filter::bloom_filter(std::string &bfFile)
+{
+    deserialize(bfFile);
+
+    dump_metadata();
 }
 
 
@@ -128,18 +160,44 @@ bool bloom_filter::query(uint64_t key)
 
 
 
+void bloom_filter::query(std::string &queryFile, std::vector<bool> &result)
+{
+    std::ifstream input(queryFile);
+
+    if(!input.is_open())
+    {
+        std::cerr << "Cannot open queries file " << queryFile << "\n";
+        exit(1);
+    }
+
+
+    uint64_t key;
+
+    uint64_t queryCount = 0;
+    while(input >> key)
+        result.push_back(query(key));
+
+    input.close();
+}
+
+
+
 void bloom_filter::serialize(std::string &outputFile)
 {
     std::ofstream output;
     output.open(outputFile.c_str(), std::ios::binary | std::ios::out);
+
+    if(!output.is_open())
+    {
+        std::cerr << "Cannot open output file " << outputFile << "\n";
+        exit(1);
+    }
 
 
     // Serialize the parameters.
     
     output.write((const char *)&n, sizeof(n));
     output.write((const char *)&p, sizeof(p));
-    output.write((const char *)&m, sizeof(m));
-    output.write((const char *)&k, sizeof(k));
 
 
     // Serialize the bits array.
@@ -148,11 +206,49 @@ void bloom_filter::serialize(std::string &outputFile)
     {
         unsigned char byte = 0;
         for(int j = 0; j < 8; ++j)
-            byte |= B[i + j];
+            byte |= (B[i + j] << j);
 
         output.write((const char *)&byte, sizeof(byte));
     }
 
 
     output.close();
+}
+
+
+
+void bloom_filter::deserialize(std::string &bfFile)
+{
+    std::ifstream input;
+
+    input.open(bfFile.c_str(), std::ios::binary | std::ios::in);
+
+    if(!input.is_open())
+    {
+        std::cerr << "Cannot open output file " << bfFile << "\n";
+        exit(1);
+    }
+
+
+    // Deserialize the parameters.
+
+    input.read((char *)&n, sizeof(n));
+    input.read((char *)&p, sizeof(p));
+
+    set_parameters(n, p);
+
+
+    // Deserialize the bits array.
+
+    for(uint64_t i = 0; i < m; i += 8)
+    {
+        unsigned char byte;
+        input.read((char *)&byte, sizeof(byte));
+
+        for(int j = 0; j < 8; ++j)
+            B[i + j] = (byte & (1 << j));
+    }
+
+
+    input.close();
 }
