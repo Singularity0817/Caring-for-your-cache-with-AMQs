@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# Miscellaneous
+.vscode/
+*.pdf
+*.bin
+*.lst
