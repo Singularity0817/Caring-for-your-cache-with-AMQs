@@ -116,7 +116,7 @@ void bloom_filter::set_parameters(uint64_t numDistinctKeys, double falsePositive
     p = falsePositiveRate;
 
     m = ceil((-double(n) * log(p)) / (log(2) * log(2)));
-    k = (double(m) / n) * log(2);
+    k = ceil((double(m) / n) * log(2));
 
     set_hash_data_structure();
 }

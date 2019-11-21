@@ -97,7 +97,7 @@ void blocked_bloom_filter::set_parameters(uint64_t numDistinctKeys, double false
     if(m % blockSize)
         m += (blockSize - m % blockSize);
 
-    k = (double(m) / n) * log(2);
+    k = ceil((double(m) / n) * log(2));
     if(k == 1)
         k = 2;
 
