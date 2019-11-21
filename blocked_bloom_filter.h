@@ -9,6 +9,9 @@ private:
     double p;       // Desired false positive rate.
     uint64_t m;     // Size of the bloom filter.
     uint32_t k;     // Number of hash functions.
+
+    uint64_t hashCombineFactor = 0; // A modular factor to combine the 128-bit murmur hash value
+                                    // to a 64-bit one.
     
     uint64_t blockCount;    // Number of blocks (bloom filters).
     uint64_t blockSize;     // Size of each block (bloom filter), in bits.
@@ -18,6 +21,8 @@ private:
 
     void set_parameters(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSize);
 
+    inline uint64_t get_murmur_hash_block(uint64_t &key);
+
 
 public:
 
@@ -26,6 +31,10 @@ public:
     blocked_bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSize = 0);
 
     void dump_metadata();
+
+    void insert(uint64_t key);
+
+    bool query(uint64_t key);
 };
 
 
@@ -54,11 +63,15 @@ void blocked_bloom_filter::set_parameters(uint64_t numDistinctKeys, double false
     if(k == 1)
         k = 2;
 
+
     blockCount = m / blockSize;
     BF.reserve(blockCount);
 
     for(uint64_t i = 0; i < blockCount; ++i)
         BF.emplace_back(blockSize, k - 1);
+        
+
+    hashCombineFactor = (((uint64_t(1) << 63) % blockCount) * (2 % blockCount)) % blockCount;
 }
 
 
@@ -74,4 +87,33 @@ void blocked_bloom_filter::dump_metadata()
     std::clog << "\tFilter count = " << blockCount << ";";
     std::clog << "\tFilter size = " << blockSize << ";";
     std::clog << "\n";
+}
+
+
+
+uint64_t blocked_bloom_filter::get_murmur_hash_block(uint64_t &key)
+{
+    uint64_t H[2];
+
+    MurmurHash3_x64_128(&key, sizeof(key), k - 1, H);
+
+    return ((((H[1] % blockCount) * hashCombineFactor) % blockCount) + (H[0] % blockCount)) % blockCount;
+}
+
+
+
+void blocked_bloom_filter::insert(uint64_t key)
+{
+    uint64_t block = get_murmur_hash_block(key);
+
+    BF[block].insert(key);
+}
+
+
+
+bool blocked_bloom_filter::query(uint64_t key)
+{
+    uint64_t block = get_murmur_hash_block(key);
+
+    return BF[block].query(key);
 }
