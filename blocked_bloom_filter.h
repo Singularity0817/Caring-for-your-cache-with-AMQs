@@ -16,15 +16,22 @@ private:
     uint64_t blockCount;    // Number of blocks (bloom filters).
     uint64_t blockSize;     // Size of each block (bloom filter), in bits.
 
-    std::vector<bloom_filter> BF;
+    std::vector<bloom_filter> BF;   // Vector of the Bloom filter blocks.
 
 
+    // Set the expected number of distinct elements and the desired false positive rate;
+    // infer the optimal setting for the bit-vector size and the number of hash functions.
+    // Also, set the block size for each Bloom filter block to the cache line size.
     void set_parameters(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSizeinBits = 0);
 
+    // Get the block number of the Bloom filter to be modified / queried for a key,
+    // using the Murmur3 hash.
     inline uint64_t get_murmur_hash_block(uint64_t &key);
 
+    // Serialize the blocked Bloom filter to the file named 'outputputFile'.
     void serialize(std::string &outputFile);
 
+    // Deserialize a Bloom filter from the file named 'bfFile'.
     void deserialize(std::string &bbfFile);
 
 
@@ -32,16 +39,30 @@ public:
 
     blocked_bloom_filter() {}
 
+    // Construct a blocked Bloom filter with 'numDistinctKeys' expected number of
+    // distinct keys, and 'falsePositiveRate' desired FPR. Also, set the block size
+    // for each Bloom filter block to the cache line size; if you are not familiar
+    // with the cache line staff, you can (and are encouraged to) leave using the
+    // last parameter.
     blocked_bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSizeinBits = 0);
 
+    // Construct a blocked Bloom filter with numDistinctKeys' expected number of
+    // distinct keys, and 'falsePositiveRate' desired FPR; fill it with the keys
+    // from the file named 'keyFile', and serialize the data structure to a file
+    // named 'outputFile'.
     blocked_bloom_filter(std::string &keyFile, uint64_t numDistinct, double fpr, std::string &outputFile);
 
+    // Construct a Bloom filter from a disk-saved (serialized) file named 'bbfFile';
+    // i.e. deserialize the data structure from disk to memory.
     blocked_bloom_filter(std::string &bbfFile);
 
+    // Log the parameters of the blocked Bloom filter.
     void dump_metadata();
 
+    // Insert the key 'key' into the blocked Bloom filter.
     void insert(uint64_t key);
 
+    // Query for the existence of the key 'key' into the blocked Bloom filter.
     bool query(uint64_t key);
 };
 
@@ -89,7 +110,8 @@ void blocked_bloom_filter::set_parameters(uint64_t numDistinctKeys, double false
 
 
 
-blocked_bloom_filter::blocked_bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSizeinBits)
+blocked_bloom_filter::blocked_bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate,
+                                            uint64_t blockSizeinBits)
 {
     set_parameters(numDistinctKeys, falsePositiveRate, blockSizeinBits);
 

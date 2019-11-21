@@ -20,39 +20,63 @@ private:
     std::vector<bool> B;    // The bit-array for the bloom filter.
 
 
-
+    // Set the hash bit-vector, along with other fields required for the Murmur3 hash.
     void set_hash_data_structure();
 
+    // Set the expected number of distinct elements and the desired false positive rate;
+    // infer the optimal setting for the bit-vector size and the number of hash functions.
     void set_parameters(uint64_t numDistinctKeys, double falsePositiveRate);
 
+    // Log the hash bit-vector.
     void dump_bits();
 
+    // Get the bit index to be set / queried for a key, using the Murmur3 hash,
+    // with a specific provided seed.
     inline uint64_t get_murmur_hash_slot(uint64_t &key, uint32_t &seed);
 
 
 public:
     bloom_filter() {}
 
+    // Construct a Bloom filter with 'numDistinctKeys' expected number of distinct keys,
+    // and 'falsePositiveRate' desired FPR.
     bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate);
 
+    // Construct a Bloom filter with numDistinctKeys' expected number of distinct keys,
+    // and 'falsePositiveRate' desired FPR; fill it with the keys from the file named 'keyFile',
+    // and serialize the data structure to a file named 'outputFile'.
     bloom_filter(std::string &keyFile, uint64_t numDistinct, double fpr, std::string &outputFile);
 
+    // Construct a Bloom filter from a disk-saved (serialized) file named 'bfFile';
+    // i.e. deserialize the data structure from disk to memory.
     bloom_filter(std::string &bfFile);
 
+    // Construct a Bloom filter with the has bit-vector sized at 'bitCount', and
+    // the number of hash functions set at 'hashCount'.
+    // Note that, this version is significantly different in theory from the other
+    // constructors, as there is no provided expected and desired values, rather the
+    // hashing data structure parameters are set directly.
     bloom_filter(uint64_t bitCount, uint32_t hashCount);
 
+    // Log the parameters of the Bloom filter.
     void dump_metadata(bool dumpBits = false);
 
+    // Insert the key 'key' into the Bloom filter.
     void insert(uint64_t key);
 
+    // Query for the existence of the key 'key' into the Bloom filter.
     bool query(uint64_t key);
 
+    // Query for the existence of all the keys from the file named 'queryFile',
+    // and put the results into the vector 'result'.
     void query(std::string &queryFile, std::vector<bool> &result);
 
+    // Serialize the Bloom filter to the file named 'outputputFile'.
     void serialize(std::string &outputFile);
 
     void serialize(std::ofstream &output, bool isBlocked = false);
 
+    // Deserialize a Bloom filter from the file named 'bfFile'.
     void deserialize(std::string &bfFile);
 
     void deserialize(std::ifstream &input, bool isBlocked = false);
@@ -79,9 +103,9 @@ void bloom_filter::dump_metadata(bool dumpBits)
 void bloom_filter::dump_bits()
 {
     for(uint64_t i = 0; i < m; ++i)
-        std::cout << B[i];
+        std::clog << B[i];
 
-    std::cout << "\n";
+    std::clog << "\n";
 }
 
 
@@ -101,6 +125,8 @@ void bloom_filter::set_parameters(uint64_t numDistinctKeys, double falsePositive
 
 void bloom_filter::set_hash_data_structure()
 {
+    // Set the bit-vector size a little larger than required, (up-to 7 bits);
+    // to accomodate full byte read/write operations.
     B.resize(m + (m % 8 ? (8 - m % 8) : 0));
 
     hashCombineFactor = (((uint64_t(1) << 63) % m) * (2 % m)) % m;
