@@ -21,15 +21,14 @@ private:
 
 
 
+    void set_hash_data_structure();
+
     void set_parameters(uint64_t numDistinctKeys, double falsePositiveRate);
 
     void dump_bits();
 
     inline uint64_t get_murmur_hash_slot(uint64_t &key, uint32_t &seed);
 
-    void serialize(std::string &outputFile);
-
-    void deserialize(std::string &bfFile);
 
 public:
     bloom_filter() {}
@@ -49,6 +48,14 @@ public:
     bool query(uint64_t key);
 
     void query(std::string &queryFile, std::vector<bool> &result);
+
+    void serialize(std::string &outputFile);
+
+    void serialize(std::ofstream &output, bool isBlocked = false);
+
+    void deserialize(std::string &bfFile);
+
+    void deserialize(std::ifstream &input, bool isBlocked = false);
 };
 
 
@@ -87,6 +94,13 @@ void bloom_filter::set_parameters(uint64_t numDistinctKeys, double falsePositive
     m = ceil((-double(n) * log(p)) / (log(2) * log(2)));
     k = (double(m) / n) * log(2);
 
+    set_hash_data_structure();
+}
+
+
+
+void bloom_filter::set_hash_data_structure()
+{
     B.resize(m + (m % 8 ? (8 - m % 8) : 0));
 
     hashCombineFactor = (((uint64_t(1) << 63) % m) * (2 % m)) % m;
@@ -116,6 +130,8 @@ bloom_filter::bloom_filter(std::string &keyFile, uint64_t numDistinct, double fp
     while(input >> key)
         insert(key);
 
+    input.close();
+
     
     serialize(outputFile);
 
@@ -139,7 +155,7 @@ bloom_filter::bloom_filter(uint64_t bitCount, uint32_t hashCount):
 {
     B.resize(m + (m % 8 ? (8 - m % 8) : 0));
 
-    hashCombineFactor = (((uint64_t(1) << 63) % m) * (2 % m)) % m;   
+    hashCombineFactor = (((uint64_t(1) << 63) % m) * (2 % m)) % m;
 }
 
 
@@ -208,10 +224,26 @@ void bloom_filter::serialize(std::string &outputFile)
     }
 
 
+    serialize(output);
+    output.close();
+}
+
+
+
+void bloom_filter::serialize(std::ofstream &output, bool isBlocked)
+{
     // Serialize the parameters.
     
-    output.write((const char *)&n, sizeof(n));
-    output.write((const char *)&p, sizeof(p));
+    if(!isBlocked)
+    {
+        output.write((const char *)&n, sizeof(n));
+        output.write((const char *)&p, sizeof(p));
+    }
+    else
+    {
+        output.write((const char *)&m, sizeof(m));
+        output.write((const char *)&k, sizeof(k));
+    }
 
 
     // Serialize the bits array.
@@ -224,9 +256,6 @@ void bloom_filter::serialize(std::string &outputFile)
 
         output.write((const char *)&byte, sizeof(byte));
     }
-
-
-    output.close();
 }
 
 
@@ -244,12 +273,30 @@ void bloom_filter::deserialize(std::string &bfFile)
     }
 
 
+    deserialize(input);
+    input.close();
+}
+
+
+
+void bloom_filter::deserialize(std::ifstream &input, bool isBlocked)
+{
     // Deserialize the parameters.
 
-    input.read((char *)&n, sizeof(n));
-    input.read((char *)&p, sizeof(p));
+    if(!isBlocked)
+    {
+        input.read((char *)&n, sizeof(n));
+        input.read((char *)&p, sizeof(p));
 
-    set_parameters(n, p);
+        set_parameters(n, p);
+    }
+    else
+    {
+        input.read((char *)&m, sizeof(m));
+        input.read((char *)&k, sizeof(k));
+
+        set_hash_data_structure();
+    }
 
 
     // Deserialize the bits array.
@@ -262,7 +309,4 @@ void bloom_filter::deserialize(std::string &bfFile)
         for(int j = 0; j < 8; ++j)
             B[i + j] = (byte & (1 << j));
     }
-
-
-    input.close();
 }
