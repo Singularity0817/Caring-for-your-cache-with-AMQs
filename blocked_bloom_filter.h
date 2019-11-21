@@ -64,6 +64,10 @@ public:
 
     // Query for the existence of the key 'key' into the blocked Bloom filter.
     bool query(uint64_t key);
+
+    // Query for the existence of all the keys from the file named 'queryFile',
+    // and put the results into the vector 'result'.
+    void query(std::string &queryFile, std::vector<bool> &result);
 };
 
 
@@ -180,6 +184,28 @@ bool blocked_bloom_filter::query(uint64_t key)
     uint64_t block = get_murmur_hash_block(key);
 
     return BF[block].query(key);
+}
+
+
+
+void blocked_bloom_filter::query(std::string &queryFile, std::vector<bool> &result)
+{
+    std::ifstream input(queryFile);
+
+    if(!input.is_open())
+    {
+        std::cerr << "Cannot open queries file " << queryFile << "\n";
+        exit(1);
+    }
+
+
+    uint64_t key;
+
+    uint64_t queryCount = 0;
+    while(input >> key)
+        result.push_back(query(key));
+
+    input.close();
 }
 
 
