@@ -19,16 +19,24 @@ private:
     std::vector<bloom_filter> BF;
 
 
-    void set_parameters(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSize);
+    void set_parameters(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSizeinBits = 0);
 
     inline uint64_t get_murmur_hash_block(uint64_t &key);
+
+    void serialize(std::string &outputFile);
+
+    void deserialize(std::string &bbfFile);
 
 
 public:
 
     blocked_bloom_filter() {}
 
-    blocked_bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSize = 0);
+    blocked_bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSizeinBits = 0);
+
+    blocked_bloom_filter(std::string &keyFile, uint64_t numDistinct, double fpr, std::string &outputFile);
+
+    blocked_bloom_filter(std::string &bbfFile);
 
     void dump_metadata();
 
@@ -39,21 +47,26 @@ public:
 
 
 
-blocked_bloom_filter::blocked_bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSize)
+void blocked_bloom_filter::dump_metadata()
 {
-    set_parameters(numDistinctKeys, falsePositiveRate,
-                    8 * (blockSize ? blockSize : sysconf(_SC_LEVEL1_DCACHE_LINESIZE)));
+    std::clog << "\tn = " << n << ";";
+    std::clog << "\tp = " << p << ";";
+    std::clog << "\tm = " << m << ";";
+    std::clog << "\tk = " << k << ";";
+    std::clog << "\n";
 
-    dump_metadata();
+    std::clog << "\tFilter count = " << blockCount << ";";
+    std::clog << "\tFilter size = " << blockSize << ";";
+    std::clog << "\n";
 }
 
 
 
-void blocked_bloom_filter::set_parameters(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSize)
+void blocked_bloom_filter::set_parameters(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSizeinBits)
 {
     n = numDistinctKeys;
     p = falsePositiveRate;
-    this -> blockSize = blockSize;
+    blockSize = (blockSizeinBits ? blockSizeinBits : 8 * sysconf(_SC_LEVEL1_DCACHE_LINESIZE));
 
     m = ceil((-double(n) * log(p)) / (log(2) * log(2)));
     if(m % blockSize)
@@ -76,17 +89,46 @@ void blocked_bloom_filter::set_parameters(uint64_t numDistinctKeys, double false
 
 
 
-void blocked_bloom_filter::dump_metadata()
+blocked_bloom_filter::blocked_bloom_filter(uint64_t numDistinctKeys, double falsePositiveRate, uint64_t blockSizeinBits)
 {
-    std::clog << "\tn = " << n << ";";
-    std::clog << "\tp = " << p << ";";
-    std::clog << "\tm = " << m << ";";
-    std::clog << "\tk = " << k << ";";
-    std::clog << "\n";
+    set_parameters(numDistinctKeys, falsePositiveRate, blockSizeinBits);
 
-    std::clog << "\tFilter count = " << blockCount << ";";
-    std::clog << "\tFilter size = " << blockSize << ";";
-    std::clog << "\n";
+    dump_metadata();
+}
+
+
+blocked_bloom_filter::blocked_bloom_filter(std::string &keyFile, uint64_t numDistinct, double fpr,
+                                            std::string &outputFile)
+{
+    std::ifstream input(keyFile);
+    if(!input.is_open())
+    {
+        std::cerr << "Cannot open keys file " << keyFile << "\n";
+        exit(1);
+    }
+
+
+    set_parameters(numDistinct, fpr);
+
+    uint64_t key;
+    while(input >> key)
+        insert(key);
+
+    input.close();
+
+    
+    serialize(outputFile);
+
+    dump_metadata();
+}
+
+
+
+blocked_bloom_filter::blocked_bloom_filter(std::string &bbfFile)
+{
+    deserialize(bbfFile);
+
+    dump_metadata();
 }
 
 
@@ -116,4 +158,65 @@ bool blocked_bloom_filter::query(uint64_t key)
     uint64_t block = get_murmur_hash_block(key);
 
     return BF[block].query(key);
+}
+
+
+
+void blocked_bloom_filter::serialize(std::string &outputFile)
+{
+    std::ofstream output;
+    output.open(outputFile.c_str(), std::ios::binary | std::ios::out);
+
+    if(!output.is_open())
+    {
+        std::cerr << "Cannot open output file " << outputFile << "\n";
+        exit(1);
+    }
+
+
+    // Serialize the parameters.
+    
+    output.write((const char *)&n, sizeof(n));
+    output.write((const char *)&p, sizeof(p));
+    output.write((const char *)&blockSize, sizeof(blockSize));
+
+
+    // Serialize the blocks (the Bloom filters).
+
+    for(uint64_t i = 0; i < blockCount; ++i)
+        BF[i].serialize(output, true);
+
+    output.close();
+}
+
+
+
+void blocked_bloom_filter::deserialize(std::string &bbfFile)
+{
+    std::ifstream input;
+
+    input.open(bbfFile.c_str(), std::ios::binary | std::ios::in);
+
+    if(!input.is_open())
+    {
+        std::cerr << "Cannot open output file " << bbfFile << "\n";
+        exit(1);
+    }
+
+
+    // Deserialize the parameters.
+
+    input.read((char *)&n, sizeof(n));
+    input.read((char *)&p, sizeof(p));
+    input.read((char *)&blockSize, sizeof(blockSize));
+
+    set_parameters(n, p, blockSize);
+
+
+    // Deserialize the blocks (the Bloom filters).
+
+    for(uint64_t i = 0; i < blockCount; ++i)
+        BF[i].deserialize(input, true);
+
+    input.close();
 }
