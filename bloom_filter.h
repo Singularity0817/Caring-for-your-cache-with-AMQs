@@ -1,7 +1,8 @@
+#include <iostream>
+#include <fstream>
 #include <cstdint>
 #include <cmath>
 #include <vector>
-#include <iostream>
 
 #include "murmur3.c"
 
@@ -38,6 +39,8 @@ public:
     bloom_filter(std::string &keyFile, uint64_t numDistinct, double fpr, std::string &outputFile);
 
     bloom_filter(std::string &bfFile);
+
+    bloom_filter(uint64_t bitCount, uint32_t hashCount);
 
     void dump_metadata(bool dumpBits = false);
 
@@ -126,6 +129,17 @@ bloom_filter::bloom_filter(std::string &bfFile)
     deserialize(bfFile);
 
     dump_metadata();
+}
+
+
+
+bloom_filter::bloom_filter(uint64_t bitCount, uint32_t hashCount):
+    m(bitCount),
+    k(hashCount)
+{
+    B.resize(m + (m % 8 ? (8 - m % 8) : 0));
+
+    hashCombineFactor = (((uint64_t(1) << 63) % m) * (2 % m)) % m;   
 }
 
 
