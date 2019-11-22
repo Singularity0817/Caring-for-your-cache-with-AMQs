@@ -80,6 +80,8 @@ public:
     void deserialize(std::string &bfFile);
 
     void deserialize(std::ifstream &input, bool isBlocked = false);
+
+    ~bloom_filter();
 };
 
 
@@ -334,5 +336,16 @@ void bloom_filter::deserialize(std::ifstream &input, bool isBlocked)
 
         for(int j = 0; j < 8; ++j)
             B[i + j] = (byte & (1 << j));
+    }
+}
+
+
+
+bloom_filter::~bloom_filter()
+{
+    if(!B.empty())
+    {
+        B.clear();
+        B.shrink_to_fit();
     }
 }
