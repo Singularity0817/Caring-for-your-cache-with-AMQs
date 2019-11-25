@@ -73,7 +73,7 @@ void benchmark_bf_all_negative(const uint64_t elemsStart, const uint64_t elemsEn
             }
 
 
-            std::clog << fpr << "\t" << n << "\t" << elapsedSecs << "\t" << double(positive) / queryCount << "\n";
+            std::clog << fpr << ";\t" << n << ";\t" << elapsedSecs << ";\t" << double(positive) / queryCount << "\n";
         }
 }
 
@@ -125,7 +125,7 @@ void benchmark_bf_half_negative(const uint64_t elemsStart, const uint64_t elemsE
             }
 
 
-            std::clog << fpr << "\t" << n << "\t" << elapsedSecs << "\t" << double(positive) / queryCount - 0.5 << "\n";
+            std::clog << fpr << ";\t" << n << ";\t" << elapsedSecs << ";\t" << double(positive) / queryCount - 0.5 << "\n";
         }
 }
 
@@ -168,7 +168,7 @@ void benchmark_bf_all_positive(const uint64_t elemsStart, const uint64_t elemsEn
             }
 
 
-            std::clog << fpr << "\t" << n << "\t" << elapsedSecs << "\t" << double(positive) / queryCount - 1 << "\n";
+            std::clog << fpr << ";\t" << n << ";\t" << elapsedSecs << ";\t" << double(positive) / queryCount - 1 << "\n";
         }
 }
 
