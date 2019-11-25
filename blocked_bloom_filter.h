@@ -119,7 +119,7 @@ blocked_bloom_filter::blocked_bloom_filter(uint64_t numDistinctKeys, double fals
 {
     set_parameters(numDistinctKeys, falsePositiveRate, blockSizeinBits);
 
-    dump_metadata();
+    // dump_metadata();
 }
 
 
