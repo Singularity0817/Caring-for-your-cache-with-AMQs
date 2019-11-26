@@ -173,7 +173,8 @@ uint64_t bloom_filter::get_murmur_hash_slot(uint64_t &key, uint32_t &seed)
 
     MurmurHash3_x64_128(&key, sizeof(key), seed, H);
 
-    return ((((H[1] % m) * hashCombineFactor) % m) + (H[0] % m)) % m;
+    // return ((((H[1] % m) * hashCombineFactor) % m) + (H[0] % m)) % m;
+    return H[0] % m;
 }
 
 
