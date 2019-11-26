@@ -2,8 +2,9 @@
 #include <random>
 #include <vector>
 #include <unordered_set>
+#include <algorithm>
 
-#include "blocked_bloom_filter.h"
+#include "bloom_filter.h"
 
 
 void generate_random_list(uint64_t sz, std::vector<uint64_t> &l)
@@ -42,15 +43,19 @@ void benchmark_bf_all_negative(const uint64_t elemsStart, const uint64_t elemsEn
     std::vector<uint64_t> keyList;
     std::vector<uint64_t> queryList;
 
-    generate_random_list(queryCount, queryList);
-    std::unordered_multiset<uint64_t> querySet(queryList.begin(), queryList.end());
-
     for(double fpr = fprStart; fpr <= fprEnd; fpr += fprStep)
         for(uint64_t n = elemsStart; n <= elemsEnd; n += elemsStep)
         {
             keyList.clear();
+            queryList.clear();
+
+
+            generate_random_list(queryCount, queryList);
+            std::unordered_multiset<uint64_t> querySet(queryList.begin(), queryList.end());
             
+
             generate_random_list(n, keyList, querySet);
+
             bloom_filter bf(n, fpr);
 
             for(auto p = keyList.begin(); p != keyList.end(); ++p)
@@ -73,7 +78,7 @@ void benchmark_bf_all_negative(const uint64_t elemsStart, const uint64_t elemsEn
             }
 
 
-            std::clog << fpr << ";\t" << n << ";\t" << elapsedSecs << ";\t" << double(positive) / queryCount << "\n";
+            std::clog << fpr << "\t" << n << "\t" << elapsedSecs << "\t" << double(positive) / queryCount << "\n";
         }
 }
 
@@ -85,6 +90,7 @@ void benchmark_bf_half_negative(const uint64_t elemsStart, const uint64_t elemsE
 {
     std::vector<uint64_t> keyList;
     std::vector<uint64_t> queryList;
+    auto rng = std::default_random_engine {};
 
 
     for(double fpr = fprStart; fpr <= fprEnd; fpr += fprStep)
@@ -93,14 +99,17 @@ void benchmark_bf_half_negative(const uint64_t elemsStart, const uint64_t elemsE
             keyList.clear();
             queryList.clear();
 
-            generate_random_list(n, keyList);
 
+            generate_random_list(n, keyList);
             std::unordered_multiset<uint64_t> keySet(keyList.begin(), keyList.end());
+
 
             for(uint64_t i = 0; i < queryCount / 2; ++i)
                 queryList.push_back(keyList[i]);
             
             generate_random_list(queryCount / 2, queryList, keySet);
+
+            std::shuffle(queryList.begin(), queryList.end(), rng);
 
 
             bloom_filter bf(n, fpr);
@@ -125,7 +134,7 @@ void benchmark_bf_half_negative(const uint64_t elemsStart, const uint64_t elemsE
             }
 
 
-            std::clog << fpr << ";\t" << n << ";\t" << elapsedSecs << ";\t" << double(positive) / queryCount - 0.5 << "\n";
+            std::clog << fpr << "\t" << n << "\t" << elapsedSecs << "\t" << (double(positive) - queryCount / 2) / queryCount << "\n";
         }
 }
 
@@ -168,7 +177,7 @@ void benchmark_bf_all_positive(const uint64_t elemsStart, const uint64_t elemsEn
             }
 
 
-            std::clog << fpr << ";\t" << n << ";\t" << elapsedSecs << ";\t" << double(positive) / queryCount - 1 << "\n";
+            std::clog << fpr << "\t" << n << "\t" << elapsedSecs << "\t" << 0 << "\n";
         }
 }
 
@@ -184,11 +193,11 @@ int main()
     const double fprStep = 0.05;
     const uint64_t queryCount = 100000;     // 0.1M
     
-    // benchmark_bf_all_negative(elemsStart, elemsEnd, elemsStep, fprStart, fprEnd, fprStep, queryCount);
+    benchmark_bf_all_negative(elemsStart, elemsEnd, elemsStep, fprStart, fprEnd, fprStep, queryCount);
 
     // benchmark_bf_half_negative(elemsStep, elemsEnd, elemsStep, fprStart, fprEnd, fprStep, queryCount);
 
-    benchmark_bf_all_positive(elemsStep, elemsEnd, elemsStep, fprStart, fprEnd, fprStep, queryCount);
+    // benchmark_bf_all_positive(elemsStep, elemsEnd, elemsStep, fprStart, fprEnd, fprStep, queryCount);
 
     return 0;
 }
