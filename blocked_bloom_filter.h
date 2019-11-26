@@ -204,7 +204,7 @@ uint64_t blocked_bloom_filter::get_murmur_hash_slot(uint64_t &key, uint32_t &see
     MurmurHash3_x64_128(&key, sizeof(key), seed, H);
 
     // return ((((H[1] % blockSize) * hashCombineFactor_slot) % blockSize) + (H[0] % blockSize)) % blockSize;
-    return H[0] % blockCount;
+    return H[0] % blockSize;
 }
 
 
