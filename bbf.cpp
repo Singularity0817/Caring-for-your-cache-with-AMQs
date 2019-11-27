@@ -4,7 +4,7 @@
 #include <string>
 #include <cstdlib>
 
-#include "blocked_bloom_filter.h"
+#include "cache_aligned_blocked_bloom_filter.h"
 
 
 
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
             }
 
 
-        blocked_bloom_filter bf(keyFile, n, fpr, outputFile);
+        cache_aligned_blocked_bloom_filter bf(keyFile, n, fpr, outputFile);
     }
     else if(!strcmp(argv[1], "query"))
     {
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
             }        
 
         
-        blocked_bloom_filter bbf(bbfFile);
+        cache_aligned_blocked_bloom_filter bbf(bbfFile);
 
         std::vector<bool> result;
         bbf.query(queryFile, result);
